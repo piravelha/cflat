@@ -20,23 +20,25 @@ class TreeIndenter(Indenter):
 
 parser = Lark(grammar, postlex=TreeIndenter())
 
+def compile_empty(**_):
+    return ""
 
-def compile_name(value, **kwargs):
+def compile_name(value, **_):
     return value
 
-def compile_integer(value, **kwargs):
+def compile_integer(value, **_):
     return value
 
-def compile_double(value, **kwargs):
+def compile_double(value, **_):
     return value
 
-def compile_float(value, **kwargs):
+def compile_float(value, **_):
     return value
 
-def compile_string(value, **kwargs):
+def compile_string(value, **_):
     return value
 
-def compile_primitive_type(value, **kwargs):
+def compile_primitive_type(value, **_):
     return value.lower()
 
 def compile_binary_op(left, op, right, **kwargs):
@@ -44,14 +46,14 @@ def compile_binary_op(left, op, right, **kwargs):
     right = compile(right, **kwargs)
     return f"{left} {op} {right}"
 
-def compile_access_mod(mod, **kwargs):
+def compile_access_mod(mod, **_):
     value = str(mod)
     match value:
         case "pub": return "public"
         case "priv": return "private"
     return "public"
 
-def compile_class_constructor_access_mod(mod, **kwargs):
+def compile_class_constructor_access_mod(mod, **_):
     value = str(mod)
     match value:
         case "pub": return "public"
@@ -79,6 +81,19 @@ def compile_param(type_hint, name, **kwargs):
 def compile_arg_list(*args, **kwargs):
     args = ", ".join(compile(arg, **kwargs) for arg in args)
     return f"({args})"
+
+def compile_generic_param_list(*params, **kwargs):
+    params = ", ".join(compile(param, **kwargs) for param in params)
+    return f"<{params}>"
+
+def compile_generic_arg_list(*args, **kwargs):
+    args = ", ".join(compile(arg, **kwargs) for arg in args)
+    return f"<{args}>"
+
+def compile_generic_type(type, args, **kwargs):
+    type = compile(type, **kwargs)
+    args = compile(args, **kwargs)
+    return f"{type}{args}"
 
 def compile_func_call(name, args, **kwargs):
     name = compile(name, **kwargs)
@@ -165,9 +180,10 @@ def compile_class_param_list(*params, **kwargs):
         code += f"{name} = _{name};\n"
     return f"{code}}}"
 
-def compile_class_decl(access_mod, name, params, body, **kwargs):
+def compile_class_decl(access_mod, name, generics, params, body, **kwargs):
     access_mod = compile(access_mod, **kwargs)
     name = compile(name, **kwargs)
+    generics = compile(generics, **kwargs)
     param_fields = ""
     for param in params.children:
         mod, type, param_name = param.children
@@ -176,7 +192,7 @@ def compile_class_decl(access_mod, name, params, body, **kwargs):
         param_fields += f"{mod} {type} {param_name} {{ get; init; }}\n"
     params = compile(params, **kwargs)
     body = compile(body, **kwargs)
-    return f"{access_mod} class {name}\n{{\n{param_fields}{access_mod} {name}{params}\n{body}}}"
+    return f"{access_mod} class {name}{generics}\n{{\n{param_fields}{access_mod} {name}{params}{body}}}\n"
 
 def compile_expr(expr, **kwargs):
     return compile(expr, **kwargs)
@@ -218,6 +234,7 @@ def compile_start(package, *stmts, **kwargs):
     """
 
 DATA_TO_COMPILER = {
+    "empty": compile_empty,
     "NAME": compile_name,
     "INTEGER": compile_integer,
     "DOUBLE": compile_double,
@@ -235,6 +252,9 @@ DATA_TO_COMPILER = {
     "var_decl": compile_var_decl,
     "class_var_decl": compile_class_var_decl,
     "arg_list": compile_arg_list,
+    "generic_param_list": compile_generic_param_list,
+    "generic_arg_list": compile_generic_arg_list,
+    "generic_type": compile_generic_type,
     "func_call": compile_func_call,
     "func_call_stmt": compile_func_call_stmt,
     "new_expr": compile_new_expr,
@@ -268,27 +288,30 @@ def compile(tree, **kwargs):
 def format_code(code):
     indentation = 0
     formatted_lines = []
+    empty_lines = 0
     for line in code.splitlines():
+        if not line.strip():
+            if empty_lines >= 1:
+                continue
+            empty_lines += 1
+        else:
+            empty_lines = 0
         if line.count("}") > line.count("{"):
             indentation -= line.count("}") - line.count("{")
         formatted_lines.append("    " * indentation + line.lstrip())
         if line.count("{") > line.count("}"):
             indentation += line.count("{") - line.count("}")
-    return "\n".join(formatted_lines)
+    return "\n".join(formatted_lines).strip()
 
-test_tree = """
-package Demo.Box
-
-class Box(int Value)
-    int Next = Value + 1
-
-void Main()
-    Box box = new(10)
-    println(box.Next)
-"""
+with open("demo.cb") as f:
+    code = f.read()
 
 def main():
-    print(format_code(compile(parser.parse(test_tree))))
+    tree = parser.parse(code)
+    compiled = format_code(compile(tree))
+    print(compiled)
+    with open("demo.out.cs", "w") as f:
+        f.write(compiled)
 
 if __name__ == '__main__':
     main()

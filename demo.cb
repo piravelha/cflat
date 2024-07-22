@@ -1,0 +1,9 @@
+package Demo
+
+class Box<T>(pub T Value)
+
+void Main()
+    Box<int> box = new(10)
+    println(box.Value)
+
+

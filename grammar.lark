@@ -5,7 +5,9 @@
 package_stmt: "package" NAME ("." NAME)* | empty
 
 block: _NL _INDENT (_NL? (stmt | expr) _NL?)* _NL _DEDENT
+     | empty
 class_block: _NL _INDENT (_NL? class_field _NL?)* _NL _DEDENT
+           | empty
 
 ?top_level_stmt: top_level_func_decl
                | func_call_stmt
@@ -28,7 +30,7 @@ class_block: _NL _INDENT (_NL? class_field _NL?)* _NL _DEDENT
             | block_func_decl
             | class_decl
 
-class_decl: access_mod "class" NAME class_param_list class_block
+class_decl: access_mod "class" NAME generic_param_list class_param_list class_block
 class_param_list: "(" (class_param ("," class_param)* ","?)? ")"
 class_param: class_constructor_access_mod type NAME
 
@@ -63,6 +65,11 @@ access_mod: ACCESS_MOD | empty
 
 ?type: PRIMITIVE_TYPE
      | NAME
+     | generic_type
+
+generic_type: type generic_arg_list
+generic_param_list: ("<" NAME ("," NAME)* ","? ">")?
+generic_arg_list: "<" type ("," type)* ","? ">"
 
 expr: log_expr
     | func_call
