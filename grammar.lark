@@ -1,0 +1,134 @@
+/// Official CFlat Grammar (Wrapper around CSharp)
+
+?start: _NL? package_stmt (_NL? top_level_stmt _NL?)*
+
+package_stmt: "package" NAME ("." NAME)* | empty
+
+block: _NL _INDENT (_NL? (stmt | expr) _NL?)* _NL _DEDENT
+class_block: _NL _INDENT (_NL? class_field _NL?)* _NL _DEDENT
+
+?top_level_stmt: top_level_func_decl
+               | func_call_stmt
+               | top_level_block_func_decl
+               | class_decl
+               | new_stmt
+               | short_new_stmt
+
+?stmt: var_decl
+     | func_decl
+     | func_call_stmt
+     | block_func_decl
+     | class_decl
+     | new_stmt
+     | short_new_stmt
+     | method_stmt
+
+?class_field: class_var_decl
+            | func_decl
+            | block_func_decl
+            | class_decl
+
+class_decl: access_mod "class" NAME class_param_list class_block
+class_param_list: "(" (class_param ("," class_param)* ","?)? ")"
+class_param: class_constructor_access_mod type NAME
+
+method_stmt: method_expr
+method_expr: atom "." NAME arg_list
+prop_expr: atom "." NAME
+
+new_stmt: new_expr
+new_expr: type "::" arg_list
+short_new_stmt: short_new_expr
+short_new_expr: "new" arg_list
+
+func_call_stmt: func_call
+func_call: atom arg_list
+
+arg_list: "(" (expr ("," expr)* ","?)? ")"
+
+top_level_func_decl: access_mod type NAME param_list "=" (expr | indented_expr)
+func_decl: access_mod type NAME param_list "=" (expr | indented_expr)
+top_level_block_func_decl: access_mod type NAME param_list block
+block_func_decl: access_mod type NAME param_list block
+param_list: "(" (param ("," param)* ","?)? ")"
+param: type NAME
+
+class_var_decl: access_mod type NAME "=" (expr | indented_expr)
+var_decl: type NAME "=" (expr | indented_expr)
+
+?indented_expr: _NL? _INDENT expr _NL? _DEDENT
+
+class_constructor_access_mod: ACCESS_MOD | empty
+access_mod: ACCESS_MOD | empty
+
+?type: PRIMITIVE_TYPE
+     | NAME
+
+expr: log_expr
+    | func_call
+    | new_expr
+    | short_new_expr
+    | prop_expr
+    | method_stmt
+
+?log_expr: eq_expr LOG_OP log_expr | eq_expr
+?eq_expr: rel_expr EQ_OP eq_expr | rel_expr
+?rel_expr: add_expr REL_OP rel_expr | add_expr
+?add_expr: mul_expr ADD_OP add_expr | mul_expr
+?mul_expr: bit_expr MUL_OP mul_expr | bit_expr
+?bit_expr: atom BIT_OP bit_expr | atom
+
+?atom: INTEGER
+     | FLOAT
+     | DOUBLE
+     | STRING
+     | BOOLEAN
+     | NAME
+     | func_call
+     | "(" expr ")"
+
+empty:
+
+PRIMITIVE_TYPE.2: "boolean"
+                | "byte"
+                | "sbyte"
+                | "char"
+                | "decimal"
+                | "double"
+                | "float"
+                | "int"
+                | "uint"
+                | "long"
+                | "ulong"
+                | "object"
+                | "short"
+                | "ushort"
+                | "string"
+
+MEMBER_MOD.2: "new"
+            | "static"
+            | "over"
+
+ACCESS_MOD.2: "pub"
+            | "priv"
+
+LOG_OP: "&&" | "||"
+EQ_OP: "==" | "!="
+REL_OP: "<" | ">" | "<=" | ">="
+ADD_OP: "+" | "-"
+MUL_OP: "*" | "/" | "%"
+BIT_OP: "|" | "&" | "&^" | "^" | "<<" | ">>"
+
+STRING: /"([^"\\]|\\.)*"/
+BOOLEAN: "true" | "false"
+FLOAT: /-?\d+\.\d+f/
+DOUBLE: /-?\d+\.\d+/
+INTEGER: /-?\d+/
+
+NAME: /[a-zA-Z_]\w*/
+
+%import common.WS_INLINE
+%declare _INDENT _DEDENT
+%ignore WS_INLINE
+
+_NL: /(\r?\n[\t ]*)+/
